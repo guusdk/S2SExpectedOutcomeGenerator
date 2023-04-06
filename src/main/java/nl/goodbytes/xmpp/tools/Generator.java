@@ -18,6 +18,8 @@ package nl.goodbytes.xmpp.tools;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 
 import static nl.goodbytes.xmpp.tools.ExpectedOutcome.ConnectionState.*;
@@ -57,7 +59,27 @@ public class Generator
         long encryptionOutcomes = 0;
         long dialbackOutcomes = 0;
         long saslExternalOutcomes = 0;
+        final List<String> flatOutput = new LinkedList<>();
+        final List<String> matrixOutput = new LinkedList<>();
+
+        // Generate column headers for matrix
+        matrixOutput.add("<html><head><style>th {background: ghostwhite} td {text-align: center}</style></head><body>");
+        matrixOutput.add("<table border='1'>");
+        final StringBuilder line1 = new StringBuilder("<tr><th></th><th>RECEIVING</th><th>Encryption</th>");
+        final StringBuilder line2 = new StringBuilder("<tr><th>INITIATING</th><th></th><th>Certificate</th>");
+        final StringBuilder line3 = new StringBuilder("<tr><th>Encryption</th><th>Certificate</th><th>Dialback</th>");
+        for (final ServerSettings remote : remoteServerSettings) {
+            line1.append("<th>").append(remote.encryptionPolicy).append("</th>");
+            line2.append("<th>").append(remote.certificateState).append("</th>");
+            line3.append("<th>").append(remote.dialbackSupported).append("</th>");
+        }
+        matrixOutput.add(line1.append("</tr>").toString());
+        matrixOutput.add(line2.append("</tr>").toString());
+        matrixOutput.add(line3.append("</tr>").toString());
+
         for (final ServerSettings local : localServerSettings) {
+
+            String matrixLine = "<tr><th>"+local.encryptionPolicy+"</th><th>"+local.certificateState+"</th><th>"+local.dialbackSupported+"</th>";
             for (final ServerSettings remote : remoteServerSettings) {
                 final ExpectedOutcome expectedOutcome = generateExpectedOutcome(local, remote);
                 final String explanation;
@@ -66,7 +88,9 @@ public class Generator
                 } else {
                     explanation = "should result in " + expectedOutcome.getConnectionState() + " because " + String.join(" ", expectedOutcome.getRationales());
                 }
-                System.out.println( "S2S from Initiating Entity [" + local.toString() + "] to Receiving Entity [" + remote.toString() + "] " + explanation );
+                flatOutput.add( "S2S from Initiating Entity [" + local.toString() + "] to Receiving Entity [" + remote.toString() + "] " + explanation );
+                matrixLine += "<td>"+expectedOutcome.getConnectionState().getShortCode()+"</td>";
+
                 totalOutcomes++;
                 if (expectedOutcome.isInconclusive()) {
                     inconclusiveOutcomes++;
@@ -89,8 +113,16 @@ public class Generator
                         break;
                 }
             }
+            matrixLine += "</tr>";
+            matrixOutput.add(matrixLine);
         }
+        matrixOutput.add("</table></body></html>");
+
+        flatOutput.forEach(System.out::println);
         System.out.println();
+        matrixOutput.forEach(System.out::println);
+        System.out.println();
+
         System.out.println("Found " + totalOutcomes + " possible outcomes of which " + inconclusiveOutcomes + " (~" + Math.round(inconclusiveOutcomes * 100.0 / totalOutcomes) +"%) were inconclusive.");
         System.out.println(noConnectOutcomes + " (~" + Math.round(noConnectOutcomes * 100.0 / totalOutcomes) + "%) of the outcomes define a 'no connection possible' scenario.");
         System.out.println(noEncryptionOutcomes + " (~" + Math.round(noEncryptionOutcomes * 100.0 / totalOutcomes) + "%) of the outcomes define a successful connection that does not use encryption.");

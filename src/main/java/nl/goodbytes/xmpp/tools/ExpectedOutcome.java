@@ -28,22 +28,31 @@ public class ExpectedOutcome
         /**
          * Connection cannot be established. In the current implementation, this includes scenarios in which connections could not be authenticated.
          */
-        NO_CONNECTION,
+        NO_CONNECTION("(no conn)"),
 
         /**
          * Connection without encryption, Initiating Entity is authenticated by the Receiving Entity using the Dialback protocol.
          */
-        NON_ENCRYPTED_WITH_DIALBACK_AUTH,
+        NON_ENCRYPTED_WITH_DIALBACK_AUTH("PLAIN DIALB"),
 
         /**
          * Connection that is encrypted, Initiating Entity is authenticated by the Receiving Entity using the Dialback protocol.
          */
-        ENCRYPTED_WITH_DIALBACK_AUTH,
+        ENCRYPTED_WITH_DIALBACK_AUTH("TLS DIALB"),
 
         /**
          * Connection that is encrypted, Initiating Entity is authenticated by the Receiving Entity using the SASL EXTERNAL mechanism.
          */
-        ENCRYPTED_WITH_SASLEXTERNAL_AUTH,
+        ENCRYPTED_WITH_SASLEXTERNAL_AUTH("SASL_EXT");
+
+        final String shortCode;
+        ConnectionState(String shortCode) {
+            this.shortCode = shortCode;
+        }
+
+        public String getShortCode() {
+            return shortCode;
+        }
     }
 
     private final Set<String> rationales = new HashSet<>();
