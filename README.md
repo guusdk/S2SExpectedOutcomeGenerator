@@ -1,8 +1,8 @@
 A generator of expected outcomes of an XMPP server-to-server unidirectional connection from one server (the Initiating Entity) to another server (the Receiving Entity).
 
-This code defines a server configuration as a collection of configuration options. The code generates scenarios based on  each possible server configuration on both ends of the to-be-established connection. For each scenario, the 'expected outcome' is calculated.
+This code defines a server configuration as a collection of configuration options. The code generates scenarios based on each possible server configuration on both ends of the to-be-established connection. For each scenario, the 'expected outcome' is calculated.
 
-It is explicitly *not advisable* to use the output of this project as an authoritative definition! This project was created to help develop understanding of relevant XMPP specifications, generate data for discussing the desirability of certain outcomes, and to 
+It is explicitly *not advisable* to use the output of this project as an authoritative definition! This project was created to help develop understanding of relevant XMPP specifications (such as [RFC6120](https://datatracker.ietf.org/doc/html/rfc6120)), generate data for discussing the desirability of certain outcomes, and to 
 facilitate the creation of (unit) tests in a specific XMPP project. Many of these outcomes are open to discussion.
 
 ### Server Settings
@@ -30,4 +30,4 @@ mvn clean package
 
 This will generate an executable JAR file in the `target` directory.
 
-Executing this JAR file (eg: `java -jar target/S2SExpectedOutcomeGenerator-1.0-SNAPSHOT.jar`) will cause all scenarios and their calculated expected outcome to be printed to the standard output stream.
+Executing this JAR file (eg: `java -jar target/S2SExpectedOutcomeGenerator-1.0-SNAPSHOT.jar`) will cause all scenarios and their calculated expected outcome to be printed to the standard output stream and into a HTML file, of which the file location is printed to the standard output stream.

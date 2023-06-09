@@ -15,11 +15,13 @@
  */
 package nl.goodbytes.xmpp.tools;
 
+import nl.goodbytes.xmpp.tools.output.HtmlTableOutputter;
+import nl.goodbytes.xmpp.tools.output.Outputter;
+import nl.goodbytes.xmpp.tools.output.StdOutOutPutter;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Set;
 
 import static nl.goodbytes.xmpp.tools.ExpectedOutcome.ConnectionState.*;
@@ -42,93 +44,15 @@ public class Generator
             }
         }
 
-        System.out.println("Generated " + localServerSettings.size() + " distinct server configurations:");
-        for (final ServerSettings serverSettings : localServerSettings) {
-            System.out.println("- " + serverSettings.toString(0));
-        }
-
-        System.out.println();
-        System.out.println("These are all scenarios in which a an outgoing, unidirectional server-to-server connection is to be established, given all possible combinations for Initiating and Receiving Entity server configuration.");
-        System.out.println("It is assumed that the Receiving Entity MUST be able to authenticate the Initiating Entity. If this is not possible, the outcome is 'NO_CONNECTION' (there is no valid connection configuration that would lead to an unauthenticated connection.");
-        System.out.println();
-
-        long totalOutcomes = 0;
-        long inconclusiveOutcomes = 0;
-        long noConnectOutcomes = 0;
-        long noEncryptionOutcomes = 0;
-        long encryptionOutcomes = 0;
-        long dialbackOutcomes = 0;
-        long saslExternalOutcomes = 0;
-        final List<String> flatOutput = new LinkedList<>();
-        final List<String> matrixOutput = new LinkedList<>();
-
-        // Generate column headers for matrix
-        matrixOutput.add("<html><head><style>th {background: ghostwhite} td {text-align: center}</style></head><body>");
-        matrixOutput.add("<table border='1'>");
-        final StringBuilder line1 = new StringBuilder("<tr><th></th><th>RECEIVING</th><th>Encryption</th>");
-        final StringBuilder line2 = new StringBuilder("<tr><th>INITIATING</th><th></th><th>Certificate</th>");
-        final StringBuilder line3 = new StringBuilder("<tr><th>Encryption</th><th>Certificate</th><th>Dialback</th>");
-        for (final ServerSettings remote : remoteServerSettings) {
-            line1.append("<th>").append(remote.encryptionPolicy).append("</th>");
-            line2.append("<th>").append(remote.certificateState).append("</th>");
-            line3.append("<th>").append(remote.dialbackSupported).append("</th>");
-        }
-        matrixOutput.add(line1.append("</tr>").toString());
-        matrixOutput.add(line2.append("</tr>").toString());
-        matrixOutput.add(line3.append("</tr>").toString());
-
+        final Set<Outputter> outputters = Set.of(new StdOutOutPutter(), new HtmlTableOutputter());
+        outputters.forEach(outputter -> outputter.init(localServerSettings, remoteServerSettings));
         for (final ServerSettings local : localServerSettings) {
-
-            String matrixLine = "<tr><th>"+local.encryptionPolicy+"</th><th>"+local.certificateState+"</th><th>"+local.dialbackSupported+"</th>";
             for (final ServerSettings remote : remoteServerSettings) {
                 final ExpectedOutcome expectedOutcome = generateExpectedOutcome(local, remote);
-                final String explanation;
-                if (expectedOutcome.isInconclusive()) {
-                    explanation = "has an inconclusive outcome";
-                } else {
-                    explanation = "should result in " + expectedOutcome.getConnectionState() + " because " + String.join(" ", expectedOutcome.getRationales());
-                }
-                flatOutput.add( "S2S from Initiating Entity [" + local.toString() + "] to Receiving Entity [" + remote.toString() + "] " + explanation );
-                matrixLine += "<td>"+expectedOutcome.getConnectionState().getShortCode()+"</td>";
-
-                totalOutcomes++;
-                if (expectedOutcome.isInconclusive()) {
-                    inconclusiveOutcomes++;
-                }
-                switch (expectedOutcome.getConnectionState()) {
-                    case NO_CONNECTION:
-                        noConnectOutcomes++;
-                        break;
-                    case NON_ENCRYPTED_WITH_DIALBACK_AUTH:
-                        noEncryptionOutcomes++;
-                        dialbackOutcomes++;
-                        break;
-                    case ENCRYPTED_WITH_DIALBACK_AUTH:
-                        encryptionOutcomes++;
-                        dialbackOutcomes++;
-                        break;
-                    case ENCRYPTED_WITH_SASLEXTERNAL_AUTH:
-                        encryptionOutcomes++;
-                        saslExternalOutcomes++;
-                        break;
-                }
+                outputters.forEach(outputter -> outputter.add(expectedOutcome, local, remote));
             }
-            matrixLine += "</tr>";
-            matrixOutput.add(matrixLine);
         }
-        matrixOutput.add("</table></body></html>");
-
-        flatOutput.forEach(System.out::println);
-        System.out.println();
-        matrixOutput.forEach(System.out::println);
-        System.out.println();
-
-        System.out.println("Found " + totalOutcomes + " possible outcomes of which " + inconclusiveOutcomes + " (~" + Math.round(inconclusiveOutcomes * 100.0 / totalOutcomes) +"%) were inconclusive.");
-        System.out.println(noConnectOutcomes + " (~" + Math.round(noConnectOutcomes * 100.0 / totalOutcomes) + "%) of the outcomes define a 'no connection possible' scenario.");
-        System.out.println(noEncryptionOutcomes + " (~" + Math.round(noEncryptionOutcomes * 100.0 / totalOutcomes) + "%) of the outcomes define a successful connection that does not use encryption.");
-        System.out.println(encryptionOutcomes + " (~" + Math.round(encryptionOutcomes * 100.0 / totalOutcomes) + "%) of the outcomes define a successful connection that do use encryption.");
-        System.out.println(dialbackOutcomes + " (~" + Math.round(dialbackOutcomes * 100.0 / totalOutcomes) + "%) of the outcomes define a successful connection in which Dialback is used to authorize the Initiating Entity.");
-        System.out.println(saslExternalOutcomes + " (~" + Math.round(saslExternalOutcomes * 100.0 / totalOutcomes) + "%) of the outcomes define a successful connection in which SASL EXTERNAL is used to authorize the Initiating Entity.");
+        outputters.forEach(Outputter::complete);
         System.out.println();
         System.out.println("Finished execution in " + Duration.between(start, Instant.now()));
     }
