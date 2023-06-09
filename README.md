@@ -21,7 +21,7 @@ Four distinct outcomes are defined, as represented by the `ExpectedOutcome` clas
 - `ENCRYPTED_WITH_SASLEXTERNAL_AUTH` - Connection that is encrypted, Initiating Entity is authenticated by the Receiving Entity using the SASL EXTERNAL mechanism.
 
 # Compiling and running the code
-This implementation requires Java 9 or later to compile and run. Apache Maven is used for the project framework (although no dependencies are defined. It should be possible to compile this using the basic `javac` compiler).
+This implementation requires Java 11 or later to compile and run. Apache Maven is used for the project framework (although no dependencies are defined. It should be possible to compile this using the basic `javac` compiler).
 
 To compile the project:
 ```bash
