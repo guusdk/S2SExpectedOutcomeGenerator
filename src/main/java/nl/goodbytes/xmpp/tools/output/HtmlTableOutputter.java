@@ -3,6 +3,7 @@ package nl.goodbytes.xmpp.tools.output;
 import nl.goodbytes.xmpp.tools.ExpectedOutcome;
 import nl.goodbytes.xmpp.tools.ServerSettings;
 
+import java.awt.Desktop;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,8 +16,9 @@ import static java.nio.file.StandardOpenOption.CREATE;
 
 public class HtmlTableOutputter implements Outputter
 {
-   private ServerSettings previousLocalServerSettings;
+    private ServerSettings previousLocalServerSettings;
 
+    private int entryCount = 0;
     private Path htmlFile;
     @Override
     public void init(final Collection<ServerSettings> localServerSettings, final Collection<ServerSettings> remoteServerSettings)
@@ -56,7 +58,8 @@ public class HtmlTableOutputter implements Outputter
             matrixLine += "<tr><th>"+localServerSettings.encryptionPolicy+"</th><th>"+localServerSettings.certificateState+"</th><th>"+localServerSettings.dialbackSupported+"</th>";
 
         }
-        matrixLine += "<td>"+expectedOutcome.getConnectionState().getShortCode()+"</td>";
+        entryCount++;
+        matrixLine += "<td>"+entryCount+". "+expectedOutcome.getConnectionState().getShortCode()+"</td>";
         try {
             Files.writeString(htmlFile, matrixLine, APPEND);
         } catch (IOException e) {
@@ -71,6 +74,7 @@ public class HtmlTableOutputter implements Outputter
             Files.writeString(htmlFile, "</tr>\n", APPEND);
             Files.writeString(htmlFile, "</table></body></html>", APPEND);
             System.out.println("Written HTML file to " + htmlFile);
+            Desktop.getDesktop().browse(htmlFile.toUri());
         } catch (IOException e) {
             e.printStackTrace();
         }
