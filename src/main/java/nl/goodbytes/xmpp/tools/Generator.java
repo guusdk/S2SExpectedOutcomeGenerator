@@ -141,8 +141,30 @@ public class Generator
                                 // TODO: should we allow TLS to be used anyway, so that encryption-without-authentication can occur via TLS, followed by a Dialback-based authentication? THIS INTRODUCES DOWNGRADE ATTACK VECTOR.
                                 break;
                             case VALID:
-                                // valid certs all around. Dialback is not needed.
-                                expectedOutcome.set(ENCRYPTED_WITH_SASLEXTERNAL_AUTH, "TLS is usable for both encryption and authentication.");
+                                // TODO - AG We need to check the initiating servers certificate
+                                switch (initiatingServer.certificateState) {
+                                    case MISSING:
+                                        if (initiatingServer.dialbackSupported && receivingServer.dialbackSupported) {
+                                            expectedOutcome.set(ENCRYPTED_WITH_DIALBACK_AUTH, "Receiving Entity provides a valid TLS certificate allowing Initiating Entity to be able to establish TLS for encryption. Initiating Entity but does not provide a certificate itself, so SASL EXTERNAL is not available for Receiving Entity to authenticate Initiating Entity, but Dialback is available for that purpose.");
+                                        } else {
+                                            expectedOutcome.set(NO_CONNECTION, "Receiving Entity provides a valid TLS certificate allowing Initiating Entity to be able to establish TLS for encryption. Initiating Entity but does not provide a certificate itself, so SASL EXTERNAL is not available for Receiving Entity to authenticate Initiating Entity. As Dialback is also not available, authentication cannot occur.");
+                                        }
+                                        break;
+                                    case INVALID:
+                                        if (initiatingServer.dialbackSupported && receivingServer.dialbackSupported) {
+                                            // TODO: should the Initiating Entity be allowed to authenticate using Dialback over an encrypted TLS connection - or should TLS fail hard when invalid certs are used (the client _could_ opt to not send those...)? Is this possibly an allowable OF-2591 edge-case, or is this a DOWNGRADE ATTACK vector?
+                                            expectedOutcome.set(NO_CONNECTION, "Initiating Entity provides an invalid TLS certificate, which should cause Receiving Entity to abort TLS.");
+                                            // possibly: expectedOutcome.set(NON_ENCRYPTED_WITH_DIALBACK), // fail TLS but allow unencrypted. Perhaps better to fail connecting, to not give false sense of encryption security? DOWNGRADE ATTACK VECTOR? Encryption is configured to be OPTIONAL, so maybe allowable?
+                                            // possibly: expectedOutcome.set(ENCRYPTED_WITH_DIALBACK), // do not fail TLS with invalid client cert, as it's usable for encryption even if it's not used for authentication. DOWNGRADE ATTACK VECTOR?
+                                        } else {
+                                            expectedOutcome.set(NO_CONNECTION, "Initiating Entity provides an invalid TLS certificate, which should cause Receiving Entity to abort TLS. Even if Receiving Entity would negotiate TLS for encryption, it can't use Initiating Entity's invalid cert for Authentication. As Dialback is also not available, authentication cannot occur.");
+                                        }
+                                        break;
+                                    case VALID:
+                                        // valid certs all around. Dialback is not needed.
+                                        expectedOutcome.set(ENCRYPTED_WITH_SASLEXTERNAL_AUTH, "TLS is usable for both encryption and authentication.");
+                                        break;
+                                }
                                 break;
                         }
                         break;
@@ -177,6 +199,7 @@ public class Generator
                                         if (initiatingServer.dialbackSupported && receivingServer.dialbackSupported) {
                                             // TODO: should the Initiating Entity be allowed to authenticate using Dialback over an encrypted TLS connection - or should TLS fail hard when invalid certs are used (the client _could_ opt to not send those...)? Is this possibly an allowable OF-2591 edge-case, or is this a DOWNGRADE ATTACK vector?
                                             expectedOutcome.set(NO_CONNECTION, "Initiating Entity provides an invalid TLS certificate, which should cause Receiving Entity to abort TLS.");
+                                            // AG: this is correct I think. The language in 13.7.2 states in block capitals if a certificate is present it MUST attempt validation; if the validation fails, the connection terminates. See RFC2119 to confirm this is an absolute requirement.
                                             // possibly: expectedOutcome.set(NON_ENCRYPTED_WITH_DIALBACK), // fail TLS but allow unencrypted. Perhaps better to fail connecting, to not give false sense of encryption security? DOWNGRADE ATTACK VECTOR? Encryption is configured to be OPTIONAL, so maybe allowable?
                                             // possibly: expectedOutcome.set(ENCRYPTED_WITH_DIALBACK), // do not fail TLS with invalid client cert, as it's usable for encryption even if it's not used for authentication. DOWNGRADE ATTACK VECTOR?
                                         } else {
@@ -200,6 +223,7 @@ public class Generator
                             case INVALID:
                                 expectedOutcome.set(NO_CONNECTION, "Receiving Entity provides an invalid TLS certificate. The Initiating Entity cannot negotiate TLS and therefor the required encrypted connection cannot be established.");
                                 // TODO: should we allow TLS to be used anyway, so that encryption-without-authentication can occur via TLS, followed by a Dialback-based authentication? THIS INTRODUCES DOWNGRADE ATTACK VECTOR.
+                                // AG: This is the expected behaviour, OF-2555 suggests this is not the current behaviour of Openfire as "if validation fails but Dialback is available", the connection is made.
                                 break;
                             case VALID:
                                 switch (initiatingServer.certificateState) {
@@ -212,7 +236,15 @@ public class Generator
                                         break;
                                     case INVALID:
                                         // TODO: should the Receiving Entity be allowed to authenticate using Dialback? Is this possibly an allowable OF-2591 edge-case?
-                                        expectedOutcome.set(NO_CONNECTION, "Initiating Entity failed (?) to negotiate encryption, as the supplied client-cert is invalid. Connection cannot be established.");
+                                        if (initiatingServer.dialbackSupported && receivingServer.dialbackSupported) {
+                                            // TODO: should the Initiating Entity be allowed to authenticate using Dialback over an encrypted TLS connection - or should TLS fail hard when invalid certs are used (the client _could_ opt to not send those...)? Is this possibly an allowable OF-2591 edge-case, or is this a DOWNGRADE ATTACK vector?
+                                            expectedOutcome.set(NO_CONNECTION, "Initiating Entity provides an invalid TLS certificate, which should cause Receiving Entity to abort TLS.");
+                                            // AG: this is correct I think. The language in 13.7.2 states in block capitals if a certificate is present it MUST attempt validation; if the validation fails, the connection terminates. See RFC2119 to confirm this is an absolute requirement.
+                                            // possibly: expectedOutcome.set(NON_ENCRYPTED_WITH_DIALBACK), // fail TLS but allow unencrypted. Perhaps better to fail connecting, to not give false sense of encryption security? DOWNGRADE ATTACK VECTOR? Encryption is configured to be OPTIONAL, so maybe allowable?
+                                            // possibly: expectedOutcome.set(ENCRYPTED_WITH_DIALBACK), // do not fail TLS with invalid client cert, as it's usable for encryption even if it's not used for authentication. DOWNGRADE ATTACK VECTOR?
+                                        } else {
+                                            expectedOutcome.set(NO_CONNECTION, "Initiating Entity provides an invalid TLS certificate, which should cause Receiving Entity to abort TLS. Even if Receiving Entity would negotiate TLS for encryption, it can't use Initiating Entity's invalid cert for Authentication. As Dialback is also not available, authentication cannot occur.");
+                                        }
                                         break;
                                     case VALID:
                                         expectedOutcome.set(ENCRYPTED_WITH_SASLEXTERNAL_AUTH, "Initiating Entity can establish encryption and authenticate using TLS.");
